@@ -11,7 +11,7 @@ problems = [
 
 if __name__ == "__main__":
     print("Reasoning Test Starts: \n")
-    
+
     for problem in problems:
         start_time = time.perf_counter()
 
@@ -27,7 +27,10 @@ if __name__ == "__main__":
 
         print("Problem given is: ", problem, "\n")
         for i, step in enumerate(result["steps"], 1):
-            print(f"{i}. {step['narration']}  |  {step['from_expr']} → {step['to_expr']}")
+            status = "✓" if step.get("verified") else "✗"
+            print(f"{i}. [{status}] {step['narration']}  |  {step['from_expr']} → {step['to_expr']}")
 
-        print(f"\nTime taken is: {exec_time:.6f} seconds")
+        overall = "ALL VERIFIED" if result.get("all_verified") else "SOME STEPS FAILED VERIFICATION"
+        print(f"\n{overall}")
+        print(f"Time taken is: {exec_time:.6f} seconds")
         print("-" * 60)
