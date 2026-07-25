@@ -13,6 +13,28 @@ Runs fully local using [Ollama](https://ollama.com) — no paid LLM API required
 5. **Render** — run the generated code through Manim; if it fails, feed the error back to the LLM and retry.
 6. **Narrate & assemble** — add synced voiceover (TTS) and stitch everything into a final video.
 
+## Notes to Self:
+
+1. Manim can generate videos of various resolutions:
+
+```bash
+manim -pql file.py SceneName # Low Res(854x480 15FPS)
+
+manim -pqm file.py SceneName # Medium(1280x720 30FPS)
+
+manim -pqh file.py SceneName # High(1920x1080 60FPS)
+
+manim -pqp file.py SceneName # 2k(2560x1440 60FPS)
+
+manim -pqk file.py SceneName # 4k(3840x2160 60FPS)
+
+# Removing the -p part doesn't do the autoplay when we run the code.
+```
+
+Hence we can put these options of generation in the app, asking if we want the video in Low Res, Medium Res, High Res, or 2K, 4K res or more.
+
+
+
 ## Tech stack
 
 | Stage | Tool |
