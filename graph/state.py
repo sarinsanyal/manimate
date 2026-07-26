@@ -5,3 +5,4 @@ class GraphState(TypedDict):
     steps: List[dict]
     raw_output: str
     all_verified: bool
+    manim_code: str
