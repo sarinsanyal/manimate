@@ -1,17 +1,27 @@
+from graph.build_pdf_graph import pdf_app
 from graph.build_graph import app
 import time
 
-topics = [
-    "The Water Cycle",
-]
+PDF_PATH = "pdf/water_cycle.pdf"  # change this to your test PDF
 
 if __name__ == "__main__":
-    print("\nFull Pipeline Test Starts: \n")
+    print("\nExtracting and segmenting PDF...\n")
+
+    pdf_result = pdf_app.invoke({
+        "pdf_path": PDF_PATH,
+        "raw_pdf_text": "", "topics": [],
+        "topic": "", "steps": [], "raw_output": "", "all_verified": False,
+        "scenes": [], "rendered_clips": [], "failed_scenes": [], "retry_count": 0,
+    })
+
+    topics = pdf_result["topics"]
+    print(f"\nRunning full pipeline for {len(topics)} topic(s) from PDF\n")
 
     for topic in topics:
         start_time = time.perf_counter()
 
         initial_state = {
+            "pdf_path": PDF_PATH, "raw_pdf_text": pdf_result["raw_pdf_text"], "topics": topics,
             "topic": topic,
             "steps": [], "raw_output": "", "all_verified": False,
             "scenes": [], "rendered_clips": [], "failed_scenes": [], "retry_count": 0,
@@ -23,8 +33,7 @@ if __name__ == "__main__":
             print(f"  FAILED — {e}\n")
             continue
 
-        end_time = time.perf_counter()
-        exec_time = end_time - start_time
+        exec_time = time.perf_counter() - start_time
 
         print("Topic given is: ", topic, "\n")
         for i, step in enumerate(result["steps"], 1):

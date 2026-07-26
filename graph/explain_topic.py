@@ -19,10 +19,12 @@ Return ONLY valid JSON in this exact format, no other text, no markdown fences:
   {{"narration": "plain English explanation", "display": "notation to show, or null", "visual_hint": "one of the values above"}}
 ]}}
 
-Example for "Subject and predicate":
+Example for "The Water Cycle":
 {{"steps": [
-  {{"narration": "Every sentence has a subject and a predicate. The subject is who or what the sentence is about. The predicate is what the subject does.", "display": null, "visual_hint": "none"}},
-  {{"narration": "In 'The dog runs fast', the subject is 'The dog' and the predicate is 'runs fast'.", "display": "The dog runs fast", "visual_hint": "highlight_text"}}
+  {{"narration": "Water is always moving between the ocean, sky, and land in a repeating cycle.", "display": null, "visual_hint": "none"}},
+  {{"narration": "The sun heats water in oceans and lakes, causing it to evaporate into vapor.", "display": "Evaporation", "visual_hint": "diagram"}},
+  {{"narration": "As vapor rises and cools, it condenses into clouds.", "display": "Condensation", "visual_hint": "diagram"}},
+  {{"narration": "The clouds release the water as rain or snow, which flows back into rivers and oceans.", "display": "Precipitation", "visual_hint": "diagram"}}
 ]}}
 
 Topic to teach: {state['topic']}"""

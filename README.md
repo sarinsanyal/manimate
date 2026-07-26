@@ -13,6 +13,16 @@ Runs fully local using [Ollama](https://ollama.com) — no paid LLM API required
 5. **Render** — run the generated code through Manim; if it fails, feed the error back to the LLM and retry.
 6. **Narrate & assemble** — add synced voiceover (TTS) and stitch everything into a final video.
 
+## Extract + Segment plan (in progress)
+
+- **Extraction is text-only for v1.** PyMuPDF (`fitz`) pulls raw text from the PDF. Diagrams/images in the source PDF are not extracted or reproduced — the existing pipeline already assigns its own `visual_hint` per step and generates an original Manim visual from scratch, so source figures only need to inform the model conceptually, not be extracted pixel-for-pixel. Literal source-diagram reproduction is a possible future feature, not v1 scope.
+- **Segmentation is LLM-based, not heading/font-size heuristics.** A new `segment_topics` node reads the full extracted text in one call and splits it into a list of topic strings. Heading detection via font size is unreliable across differently-formatted PDFs, and an LLM call is more robust and consistent with the rest of the pipeline's design.
+- **Graph shape:**
+
+extract_pdf → segment_topics → [explain_topic → verify_steps → generate_code → render_sandbox] (loop per topic)
+
+  No changes needed to the four existing nodes — `segment_topics` just feeds topic strings into the same pipeline that's already been built and debugged, once per topic.
+
 ## Notes to Self:
 
 1. Manim can generate videos of various resolutions:

@@ -12,6 +12,9 @@ class Step(TypedDict):
     visual_hint: VisualHint
 
 class GraphState(TypedDict):
+    pdf_path: Optional[str]
+    raw_pdf_text: Optional[str]
+    topics: List[str]
     topic: str
     steps: List[Step]
     raw_output: str
