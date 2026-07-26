@@ -19,3 +19,4 @@ class GraphState(TypedDict):
     rendered_clips: List[str]
     failed_scenes: List[dict]
     retry_count: int
+    all_verified: bool
