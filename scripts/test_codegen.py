@@ -1,4 +1,4 @@
-from graph.solve_problem import solve_node
+from graph.explain_topic import solve_node
 from graph.generate_code import generate_code_node
 import subprocess
 

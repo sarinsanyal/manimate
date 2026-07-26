@@ -1,44 +1,90 @@
 from langchain_ollama import ChatOllama
-import re
 from graph.state import GraphState
+from graph.extract import extract_code
 
+CODER_MODEL = "qwen2.5-coder:3b"
 
-def generate_code_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model="qwen2.5-coder:3b", temperature=0)
-
-    step = state["steps"][0]  # for now, just handle the first step — we'll loop later
-
-    prompt = f"""Write a complete Manim Community Edition Python file.
-
+COMMON_RULES = """
 It must contain:
 - The import line: from manim import *
-- A class named GeneratedScene that inherits from Scene
+- A class named {scene_name} that inherits from Scene
 - A construct(self) method with the animation logic
-
-Goal: show this step of solving a math problem, with a bit of visual richness.
-Narration: "{step['narration']}"
-Equation before: "{step['from_expr']}"
-Equation after: "{step['to_expr']}"
-
-Requirements for construct():
-- title = Text(narration, font_size=28), positioned with .to_edge(UP), animated in with self.play(Write(title))
-- before_eq = MathTex(...), positioned with .move_to(ORIGIN) (the center — do NOT also put it at the top edge, that would overlap the title)
-- Animate before_eq appearing with self.play(FadeIn(before_eq))
-- after_eq = MathTex(...), same position as before_eq using after_eq.move_to(before_eq)
-- Transform with self.play(TransformMatchingTex(before_eq, after_eq))
-- After the transform, self.play(Indicate(after_eq, color=YELLOW)) — indicate the WHOLE equation, not a sub-part of it
-- Do NOT index into a MathTex object's characters (e.g. no before_eq[0][1]) — only operate on whole MathTex objects
 
 You may ONLY use these methods/functions inside construct() — do not invent any others:
 - Text(...), MathTex(...)
-- .to_edge(UP), .move_to(...), .next_to(other, direction)
-- self.play(Write(x)), self.play(FadeIn(x)), self.play(FadeOut(x)), self.play(TransformMatchingTex(a, b)), self.play(Indicate(x, color=YELLOW))
+- .to_edge(UP), .to_edge(DOWN), .move_to(...), .next_to(other, direction), .shift(...)
+- self.play(Write(x)), self.play(FadeIn(x)), self.play(FadeOut(x)), self.play(TransformMatchingTex(a, b)), self.play(Indicate(x, color=YELLOW)), self.play(Create(x))
 - self.wait(seconds)
+- Rectangle(...), Circle(...), Line(...), Arrow(...), VGroup(...)
 
-Return ONLY the complete Python file, wrapped in a single ```python code fence. Do not add any explanation before or after the code fence."""
+Return ONLY the complete Python file, wrapped in a single ```python code fence. Do not add any explanation before or after the code fence.
+"""
 
-    response = llm.invoke(prompt)
-    code = response.content
-    code = re.sub(r"^```python\s*|^```\s*|\s*```$", "", code.strip())
 
-    return {**state, "manim_code": code}
+def build_prompt_equation(step, scene_name):
+    return f"""Write a complete Manim Community Edition Python file.
+{COMMON_RULES.format(scene_name=scene_name)}
+Goal: teach this step of a concept, showing a piece of math notation.
+Narration: "{step['narration']}"
+Notation to display: "{step.get('display') or ''}"
+
+Requirements for construct():
+- title = Text(narration, font_size=28), positioned .to_edge(UP), animated with self.play(Write(title))
+- eq = MathTex(the notation), positioned .move_to(ORIGIN)
+- self.play(Write(eq))
+- self.wait(2)
+"""
+
+
+def build_prompt_highlight_text(step, scene_name):
+    return f"""Write a complete Manim Community Edition Python file.
+{COMMON_RULES.format(scene_name=scene_name)}
+Goal: teach this step by showing a sentence or phrase clearly on screen.
+Narration: "{step['narration']}"
+Text to display: "{step.get('display') or ''}"
+
+Requirements for construct():
+- title = Text(narration, font_size=26), .to_edge(UP), self.play(Write(title))
+- body = Text(the text to display, font_size=36), .move_to(ORIGIN)
+- self.play(Write(body))
+- self.wait(2)
+"""
+
+
+def build_prompt_generic(step, scene_name):
+    return f"""Write a complete Manim Community Edition Python file.
+{COMMON_RULES.format(scene_name=scene_name)}
+Goal: visually teach this step of a concept to a student. Keep the animation simple and clear given the limited allowed methods.
+Narration: "{step['narration']}"
+Content to display, if any: "{step.get('display') or ''}"
+Suggested visual style: {step.get('visual_hint') or 'none'}
+
+Requirements for construct():
+- Show a title Text with the narration at the top, animated in
+- If there is content to display, show it centered on screen using Text or MathTex as appropriate, animated in
+- Keep it to 2-4 animation calls total
+- self.wait(1) between animations so it's readable
+"""
+
+
+PROMPT_BUILDERS = {
+    "equation": build_prompt_equation,
+    "highlight_text": build_prompt_highlight_text,
+}
+
+
+def generate_code_node(state: GraphState) -> GraphState:
+    llm = ChatOllama(model=CODER_MODEL, temperature=0)
+    all_scenes = []
+
+    for i, step in enumerate(state["steps"]):
+        scene_name = f"Step{i+1}Scene"
+        builder = PROMPT_BUILDERS.get(step.get("visual_hint"), build_prompt_generic)
+        prompt = builder(step, scene_name)
+
+        response = llm.invoke(prompt)
+        code = extract_code(response.content)
+
+        all_scenes.append({"scene_name": scene_name, "code": code})
+
+    return {**state, "scenes": all_scenes}

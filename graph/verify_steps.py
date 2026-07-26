@@ -1,44 +1,39 @@
-import sympy
-from sympy import Eq, solve, symbols
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 from graph.state import GraphState
 
 transformations = standard_transformations + (implicit_multiplication_application,)
 
 
-def parse_equation(expr_str: str):
-    """Turn a string like '2x + 3 = 7' into a sympy Eq object."""
-    left, right = expr_str.split("=")
-    x = symbols("x")
-    left_expr = parse_expr(left.strip().replace("^", "**"), local_dict={"x": x}, transformations=transformations)
-    right_expr = parse_expr(right.strip().replace("^", "**"), local_dict={"x": x}, transformations=transformations)
-    return Eq(left_expr, right_expr)
-
-
-def verify_step(from_expr: str, to_expr: str) -> bool:
-    """Check that from_expr and to_expr have the same solution for x."""
-    try:
-        eq1 = parse_equation(from_expr)
-        eq2 = parse_equation(to_expr)
-        x = symbols("x")
-        sol1 = solve(eq1, x)
-        sol2 = solve(eq2, x)
-        return sol1 == sol2
-    except Exception as e:
-        print(f"  Verification error on '{from_expr}' -> '{to_expr}': {e}")
-        return False
-
-
 def verify_steps_node(state: GraphState) -> GraphState:
+    """
+    Teacher-mode steps are single statements (narration + display), not
+    before/after transformations, so there's no equivalence to check like
+    the old solver-mode version did. This does a lighter sanity check:
+    if a step is tagged "equation" and has a display value, confirm it's
+    at least parseable math. Everything else passes through untouched.
+    """
     verified_steps = []
     all_valid = True
 
     for step in state["steps"]:
-        is_valid = verify_step(step["from_expr"], step["to_expr"])
+        is_valid = True
+        if step.get("visual_hint") == "equation" and step.get("display"):
+            try:
+                expr = step["display"].replace("^", "**")
+                if "=" in expr:
+                    left, right = expr.split("=", 1)
+                    parse_expr(left.strip(), transformations=transformations)
+                    parse_expr(right.strip(), transformations=transformations)
+                else:
+                    parse_expr(expr.strip(), transformations=transformations)
+            except Exception as e:
+                is_valid = False
+                print(f"  ⚠ Could not parse display for step: '{step['display']}' — {e}")
+
         step["verified"] = is_valid
         verified_steps.append(step)
         if not is_valid:
             all_valid = False
-            print(f"  ⚠ Step failed verification: {step['from_expr']} -> {step['to_expr']}")
 
+    print(f"  DEBUG: all_valid = {all_valid}")
     return {**state, "steps": verified_steps, "all_verified": all_valid}
