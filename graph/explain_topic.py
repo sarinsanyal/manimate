@@ -6,32 +6,23 @@ from graph.extract import extract_code
 
 
 def explain_topic_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model="qwen2.5:1.5b", temperature=0)
+    llm = ChatOllama(model="qwen2.5:1.5b", temperature=0, num_predict=800)
 
-    prompt = f"""You are a teacher explaining a topic to a student seeing it for the first time. The topic could be from any subject — math, science, history, literature, grammar, civics, anything.
+    prompt = f"""You are a teacher explaining a topic to a student for the first time. The topic can be from any subject: math, science, history, literature, grammar, or anything else.
 
-Break the explanation into small teaching steps, each building on the last. For each step, decide what kind of visual would help a student understand it — pick the visual_hint that best fits, or "none" if plain narration is enough.
+Break your explanation into small steps, each building on the last. For each step, pick a visual_hint that fits: equation, graph, number_line, shape, timeline, diagram, map, comparison, highlight_text, tree, or none.
 
-Do not use LaTeX syntax like \( \) inside narration text — keep narration in plain English, only use the display field for notation.
+Narration must be plain spoken English — no LaTeX, no math symbols, no backslashes. Put any notation in the display field instead.
 
-Available visual_hint values: equation, graph, number_line, shape, timeline, diagram, map, comparison, highlight_text, tree, none
-
-Return ONLY valid JSON, no other text, no markdown fences, in this exact format:
+Return ONLY valid JSON in this exact format, no other text, no markdown fences:
 {{"steps": [
-  {{"narration": "plain-English explanation of this piece", "display": "text/notation to show on screen, or null", "visual_hint": "one of the values above"}}
-]}}
-
-Example for "The Water Cycle":
-{{"steps": [
-  {{"narration": "Water is always moving between the ocean, sky, and land in a repeating cycle.", "display": null, "visual_hint": "diagram"}},
-  {{"narration": "The sun heats water in oceans and lakes, causing it to evaporate into vapor.", "display": "Evaporation", "visual_hint": "diagram"}},
-  {{"narration": "As vapor rises and cools, it condenses into clouds.", "display": "Condensation", "visual_hint": "diagram"}}
+  {{"narration": "plain English explanation", "display": "notation to show, or null", "visual_hint": "one of the values above"}}
 ]}}
 
 Example for "Subject and predicate":
 {{"steps": [
-  {{"narration": "Every complete sentence has two parts: a subject, who or what the sentence is about, and a predicate, what the subject does.", "display": null, "visual_hint": "none"}},
-  {{"narration": "In 'The dog runs fast', 'The dog' is the subject and 'runs fast' is the predicate.", "display": "The dog runs fast", "visual_hint": "highlight_text"}}
+  {{"narration": "Every sentence has a subject and a predicate. The subject is who or what the sentence is about. The predicate is what the subject does.", "display": null, "visual_hint": "none"}},
+  {{"narration": "In 'The dog runs fast', the subject is 'The dog' and the predicate is 'runs fast'.", "display": "The dog runs fast", "visual_hint": "highlight_text"}}
 ]}}
 
 Topic to teach: {state['topic']}"""
@@ -39,7 +30,14 @@ Topic to teach: {state['topic']}"""
     response = llm.invoke(prompt)
     raw = response.content
     cleaned = extract_code(raw)
-    cleaned = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', cleaned)
+    cleaned = re.sub(r'\\(?!["\\/])', r'\\\\', cleaned)
     data = json.loads(cleaned)
 
+    for step in data["steps"]:
+      text = step["narration"]
+      text = re.sub(r'\\[a-zA-Z]+\{[^}]*\}(\{[^}]*\})?', '', text)  # \frac{a}{b}, \sqrt{a}, etc.
+      text = re.sub(r'\\[()[\]]', '', text)                          # \( \) \[ \]
+      text = re.sub(r'\s{2,}', ' ', text)                             # collapse leftover double spaces
+      step["narration"] = text.strip()
+      
     return {"topic": state["topic"], "steps": data["steps"], "raw_output": raw}

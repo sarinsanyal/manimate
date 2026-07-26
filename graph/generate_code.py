@@ -12,10 +12,12 @@ It must contain:
 
 You may ONLY use these methods/functions inside construct() — do not invent any others:
 - Text(...), MathTex(...)
-- .to_edge(UP), .to_edge(DOWN), .move_to(...), .next_to(other, direction), .shift(...)
-- self.play(Write(x)), self.play(FadeIn(x)), self.play(FadeOut(x)), self.play(TransformMatchingTex(a, b)), self.play(Indicate(x, color=YELLOW)), self.play(Create(x))
+- Positioning (call directly on the object, NOT inside self.play()): .to_edge(UP), .to_edge(DOWN), .move_to(...), .next_to(other, direction), .shift(...)
+- Animations (only these go inside self.play()): Write(x), FadeIn(x), FadeOut(x), TransformMatchingTex(a, b), Indicate(x, color=YELLOW), Create(x)
 - self.wait(seconds)
 - Rectangle(...), Circle(...), Line(...), Arrow(...), VGroup(...)
+
+Never invent animation names. self.play() may ONLY contain the animation functions listed above — nothing else.
 
 Return ONLY the complete Python file, wrapped in a single ```python code fence. Do not add any explanation before or after the code fence.
 """
