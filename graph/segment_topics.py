@@ -16,15 +16,15 @@ def segment_topics_node(state: GraphState) -> GraphState:
 
     prompt = f"""You are splitting a document into separate topics for a student to learn one at a time.
 
-Read the document text below and identify up to {MAX_TOPICS} distinct topics covered in it. Each topic should be a short, clear phrase describing one self-contained thing to teach — similar to a section or concept title, not a full sentence.
+Read the document text below and identify up to {MAX_TOPICS} distinct topics covered in it. For each topic, give a short title AND a 2-4 sentence excerpt copied or closely paraphrased from the document that captures what THIS specific topic actually covers. The excerpt exists so a separate teacher can explain the correct concept later without seeing the whole document — be specific enough to disambiguate the topic (e.g. if the title could be misread as an unrelated meaning of the same words, the excerpt should make the actual subject unambiguous).
 
 If the document covers fewer than {MAX_TOPICS} topics, return only that many. Do not invent topics that are not actually in the text.
 
 Return ONLY valid JSON in this exact format, no other text, no markdown fences:
-{{"topics": ["first topic", "second topic"]}}
+{{"topics": [{{"title": "short topic title", "excerpt": "2-4 sentences of relevant source content"}}]}}
 
 Example:
-{{"topics": ["Subtracting integers", "Solving one-step equations", "The distributive property"]}}
+{{"topics": [{{"title": "Subtracting integers", "excerpt": "When subtracting a negative number, we add its absolute value instead. For example, 5 - (-3) becomes 5 + 3 = 8."}}]}}
 
 Document text:
 {text[:20000]}"""
@@ -40,6 +40,6 @@ Document text:
     if not topics:
         raise ValueError("segment_topics produced no topics from the extracted PDF text.")
 
-    print(f"  Segmented into {len(topics)} topic(s): {topics}")
+    print(f"  Segmented into {len(topics)} topic(s): {[t['title'] for t in topics]}")
 
     return {**state, "topics": topics}

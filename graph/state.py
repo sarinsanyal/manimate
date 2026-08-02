@@ -11,11 +11,16 @@ class Step(TypedDict):
     display: Optional[str]
     visual_hint: VisualHint
 
+class TopicInfo(TypedDict):
+    title: str
+    excerpt: str
+
 class GraphState(TypedDict):
     pdf_path: Optional[str]
     raw_pdf_text: Optional[str]
-    topics: List[str]
+    topics: List[TopicInfo]      # was List[str]
     topic: str
+    topic_excerpt: Optional[str] # new
     steps: List[Step]
     raw_output: str
     scenes: List[dict]

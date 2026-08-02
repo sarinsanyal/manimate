@@ -20,6 +20,7 @@ def verify_steps_node(state: GraphState) -> GraphState:
         if step.get("visual_hint") == "equation" and step.get("display"):
             try:
                 expr = step["display"].replace("^", "**")
+                expr = expr.replace("+/-", "").replace("±", "")  # sympy can't parse plus-minus notation; strip for parseability check only
                 if "=" in expr:
                     left, right = expr.split("=", 1)
                     parse_expr(left.strip(), transformations=transformations)

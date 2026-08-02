@@ -7,7 +7,7 @@ from graph.build_pdf_graph import pdf_app
 from graph.build_graph import app
 
 
-def run_topic(topic, raw_pdf_text="", topics=None, pdf_path=None):
+def run_topic(topic, topic_excerpt="", raw_pdf_text="", topics=None, pdf_path=None):
     start_time = time.perf_counter()
 
     initial_state = {
@@ -15,6 +15,7 @@ def run_topic(topic, raw_pdf_text="", topics=None, pdf_path=None):
         "raw_pdf_text": raw_pdf_text,
         "topics": topics or [],
         "topic": topic,
+        "topic_excerpt": topic_excerpt,
         "steps": [], "raw_output": "", "all_verified": False,
         "scenes": [], "rendered_clips": [], "failed_scenes": [], "retry_count": 0,
     }
@@ -71,8 +72,14 @@ def main():
     topics = pdf_result["topics"]
     print(f"\nRunning full pipeline for {len(topics)} topic(s) from PDF\n")
 
-    for topic in topics:
-        run_topic(topic, raw_pdf_text=pdf_result["raw_pdf_text"], topics=topics, pdf_path=args.pdf)
+    for topic_info in topics:
+        run_topic(
+            topic_info["title"],
+            topic_excerpt=topic_info.get("excerpt", ""),
+            raw_pdf_text=pdf_result["raw_pdf_text"],
+            topics=topics,
+            pdf_path=args.pdf,
+        )
 
 
 if __name__ == "__main__":

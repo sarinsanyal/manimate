@@ -1,7 +1,10 @@
-from graph.llm_config import get_coder_llm
+from graph.llm_config import get_coder_llm, get_reasoning_llm
 from graph.state import GraphState
 from graph.extract import extract_code
+from graph.diagram_builder import build_diagram_scene, ICON_ALLOWLIST
 import textwrap
+import json
+import re
 
 CODER_MODEL = "qwen2.5-coder:3b"
 
@@ -87,48 +90,34 @@ Requirements for construct():
 - self.wait(1) between animations so it's readable
 """
 
-def build_prompt_diagram(step, scene_name):
-    narration = wrap_text(step['narration'], width=40)
-    display_hint = step.get('display') or ''
-    return f"""Write a complete Manim Community Edition Python file.
-{COMMON_RULES.format(scene_name=scene_name)}
-Goal: visually teach this step using a clean, minimalist flow diagram in the style of 3Blue1Brown — abstract geometric shapes connected by arrows, restrained color palette, generous whitespace. Never use literal icons (no suns, water drops, trees, etc.) — only simple shapes: Circle, Square, or Dot.
-Narration (already wrapped, use as-is): "{narration}"
-Key term for this step, if any: "{display_hint}"
-
-Identify 2 or 3 short stages/parts implied by the narration (each label must be 1-3 words). The labels must be generated fresh from THIS narration's actual content — never reuse labels from any example shown to you, those are structural patterns only, not content to copy.
-
-Color and style rules (strict — this is a specific visual language, not decoration):
-- ALL shapes use the SAME base color: BLUE_D for stroke, BLUE_D for fill at fill_opacity=0.12
-- Use stroke_width=3 (thin, precise lines — never thick or cartoonish)
-- Exactly ONE shape — whichever stage is most central to the narration's key idea — gets emphasized instead: stroke_color=YELLOW, fill_color=YELLOW, fill_opacity=0.15. This is the only place color deviates; it draws the eye without decorating.
-- Arrows: color=GREY_B, stroke_width=2, buff=0.15 — thin and quiet, not bold white arrows
-- Labels: Text(label, font_size=22, color=WHITE)
-- Leave generous spacing between shapes: buff=2.2 minimum between adjacent shapes
-
-Requirements for construct():
-- title = Text("{narration}", font_size=26), title.to_edge(UP, buff=0.6), self.play(Write(title))
-- Create 2 or 3 Circle(radius=1.0) shapes, positioned left to right below the title using .move_to and .shift(RIGHT * n) or .next_to(previous_shape, RIGHT, buff=2.2)
-- Apply the color rules above — all shapes BLUE_D except the one emphasized shape in YELLOW
-- Put a short Text label below each shape using .next_to(shape, DOWN, buff=0.35)
-- Connect each shape to the next with Arrow(start_shape.get_right(), end_shape.get_left(), color=GREY_B, stroke_width=2, buff=0.15)
-- Animate in order: self.play(Create(shape1)), self.play(Write(label1)), self.wait(0.5), self.play(Create(arrow1)), self.play(Create(shape2)), self.play(Write(label2)), and so on for any remaining shapes, with self.wait(0.5) between each beat
-- self.wait(2) at the end
-
-Example structure showing the PATTERN only — do not reuse these exact words, generate labels from the actual narration above:
-    shape1 = Circle(radius=1.0, stroke_width=3, color=BLUE_D, fill_color=BLUE_D, fill_opacity=0.12).move_to(LEFT * 3)
-    label1 = Text("[stage 1 label]", font_size=22, color=WHITE).next_to(shape1, DOWN, buff=0.35)
-    shape2 = Circle(radius=1.0, stroke_width=3, color=YELLOW, fill_color=YELLOW, fill_opacity=0.15).move_to(RIGHT * 3)
-    label2 = Text("[stage 2 label]", font_size=22, color=WHITE).next_to(shape2, DOWN, buff=0.35)
-    arrow1 = Arrow(shape1.get_right(), shape2.get_left(), color=GREY_B, stroke_width=2, buff=0.15)
-"""
-
 PROMPT_BUILDERS = {
     "equation": build_prompt_equation,
     "highlight_text": build_prompt_highlight_text,
-    "diagram": build_prompt_diagram,
 }
 
+def get_diagram_stages(step) -> list[dict]:
+    llm = get_reasoning_llm()
+    allowlist_str = ", ".join(ICON_ALLOWLIST)
+    prompt = f"""Break this narration into 2 or 3 short stages for a diagram. For each stage, pick the closest matching icon from this exact list (use the icon name exactly as written, do not invent new names): {allowlist_str}
+
+If nothing fits well, use "circle" as a neutral fallback icon.
+
+Narration: "{step['narration']}"
+
+Return ONLY valid JSON, no other text: {{"stages": [{{"icon": "icon-name", "label": "1-3 word label"}}]}}"""
+
+    response = llm.invoke(prompt)
+    from graph.extract import extract_code
+    cleaned = extract_code(response.content)
+    cleaned = re.sub(r'\\(?!["\\/])', r'\\\\', cleaned)
+    try:
+        data = json.loads(cleaned)
+        stages = data.get("stages", [])
+        if stages:
+            return stages
+    except Exception:
+        pass
+    return [{"icon": "circle", "label": "Stage 1"}, {"icon": "circle", "label": "Stage 2"}]
 
 def generate_code_node(state: GraphState) -> GraphState:
     llm = get_coder_llm()
@@ -136,11 +125,15 @@ def generate_code_node(state: GraphState) -> GraphState:
 
     for i, step in enumerate(state["steps"]):
         scene_name = f"Step{i+1}Scene"
-        builder = PROMPT_BUILDERS.get(step.get("visual_hint"), build_prompt_generic)
-        prompt = builder(step, scene_name)
 
-        response = llm.invoke(prompt)
-        code = extract_code(response.content)
+        if step.get("visual_hint") == "diagram":
+            stages = get_diagram_stages(step)
+            code = build_diagram_scene(scene_name, wrap_text(step['narration'], width=40), stages)
+        else:
+            builder = PROMPT_BUILDERS.get(step.get("visual_hint"), build_prompt_generic)
+            prompt = builder(step, scene_name)
+            response = llm.invoke(prompt)
+            code = extract_code(response.content)
 
         all_scenes.append({"scene_name": scene_name, "code": code})
 
