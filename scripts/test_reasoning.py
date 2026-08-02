@@ -5,7 +5,7 @@ from graph.build_graph import app
 import time
 
 topics = [
-    "Fourier Transform",
+    "Photosynthesis",
 ]
 
 if __name__ == "__main__":
