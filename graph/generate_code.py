@@ -1,4 +1,4 @@
-from langchain_ollama import ChatOllama
+from graph.llm_config import get_coder_llm
 from graph.state import GraphState
 from graph.extract import extract_code
 import textwrap
@@ -92,28 +92,35 @@ def build_prompt_diagram(step, scene_name):
     display_hint = step.get('display') or ''
     return f"""Write a complete Manim Community Edition Python file.
 {COMMON_RULES.format(scene_name=scene_name)}
-Goal: visually teach this step using a simple flow diagram — shapes connected by arrows, not just text.
+Goal: visually teach this step using a clean, minimalist flow diagram in the style of 3Blue1Brown — abstract geometric shapes connected by arrows, restrained color palette, generous whitespace. Never use literal icons (no suns, water drops, trees, etc.) — only simple shapes: Circle, Square, or Dot.
 Narration (already wrapped, use as-is): "{narration}"
 Key term for this step, if any: "{display_hint}"
 
-Identify 2 or 3 short stages/parts implied by the narration (each label must be 1-3 words, e.g. "Sun heats water", "Evaporation", "Water vapor rises"). Pick labels that make sense for THIS narration specifically.
+Identify 2 or 3 short stages/parts implied by the narration (each label must be 1-3 words). The labels must be generated fresh from THIS narration's actual content — never reuse labels from any example shown to you, those are structural patterns only, not content to copy.
+
+Color and style rules (strict — this is a specific visual language, not decoration):
+- ALL shapes use the SAME base color: BLUE_D for stroke, BLUE_D for fill at fill_opacity=0.12
+- Use stroke_width=3 (thin, precise lines — never thick or cartoonish)
+- Exactly ONE shape — whichever stage is most central to the narration's key idea — gets emphasized instead: stroke_color=YELLOW, fill_color=YELLOW, fill_opacity=0.15. This is the only place color deviates; it draws the eye without decorating.
+- Arrows: color=GREY_B, stroke_width=2, buff=0.15 — thin and quiet, not bold white arrows
+- Labels: Text(label, font_size=22, color=WHITE)
+- Leave generous spacing between shapes: buff=2.2 minimum between adjacent shapes
 
 Requirements for construct():
-- title = Text("{narration}", font_size=26), title.to_edge(UP, buff=0.5), self.play(Write(title))
-- Create 2 or 3 Circle(radius=1.1, stroke_width=6) shapes, positioned left to right below the title using .move_to and .shift(RIGHT * n) or .next_to(previous_shape, RIGHT, buff=2.0)
-- Alternate circle colors in this order: BLUE, ORANGE, GREEN (first circle BLUE, second ORANGE, third GREEN if present) — set via Circle(radius=1.1, stroke_width=6, color=BLUE) etc.
-- Fill each circle with a light version of its own color at low opacity: add fill_color=BLUE, fill_opacity=0.15 (matching each circle's stroke color) so it reads as a soft glowing shape, not just an outline
-- Put a short Text label (font_size=22) below each circle using .next_to(circle, DOWN, buff=0.3)
-- Connect each circle to the next with Arrow(start_circle.get_right(), end_circle.get_left(), color=WHITE, stroke_width=5, buff=0.1)
-- Animate in order: self.play(Create(circle1)), self.play(Write(label1)), self.wait(0.3), self.play(Create(arrow1)), self.play(Create(circle2)), self.play(Write(label2)), and so on for any remaining shapes
+- title = Text("{narration}", font_size=26), title.to_edge(UP, buff=0.6), self.play(Write(title))
+- Create 2 or 3 Circle(radius=1.0) shapes, positioned left to right below the title using .move_to and .shift(RIGHT * n) or .next_to(previous_shape, RIGHT, buff=2.2)
+- Apply the color rules above — all shapes BLUE_D except the one emphasized shape in YELLOW
+- Put a short Text label below each shape using .next_to(shape, DOWN, buff=0.35)
+- Connect each shape to the next with Arrow(start_shape.get_right(), end_shape.get_left(), color=GREY_B, stroke_width=2, buff=0.15)
+- Animate in order: self.play(Create(shape1)), self.play(Write(label1)), self.wait(0.5), self.play(Create(arrow1)), self.play(Create(shape2)), self.play(Write(label2)), and so on for any remaining shapes, with self.wait(0.5) between each beat
 - self.wait(2) at the end
 
-Example structure for 2 stages:
-    circle1 = Circle(radius=1.1, stroke_width=6, color=BLUE, fill_color=BLUE, fill_opacity=0.15).move_to(LEFT * 3)
-    label1 = Text("Sun heats water", font_size=22).next_to(circle1, DOWN, buff=0.3)
-    circle2 = Circle(radius=1.1, stroke_width=6, color=ORANGE, fill_color=ORANGE, fill_opacity=0.15).move_to(RIGHT * 3)
-    label2 = Text("Evaporation", font_size=22).next_to(circle2, DOWN, buff=0.3)
-    arrow1 = Arrow(circle1.get_right(), circle2.get_left(), color=WHITE, stroke_width=5, buff=0.1)
+Example structure showing the PATTERN only — do not reuse these exact words, generate labels from the actual narration above:
+    shape1 = Circle(radius=1.0, stroke_width=3, color=BLUE_D, fill_color=BLUE_D, fill_opacity=0.12).move_to(LEFT * 3)
+    label1 = Text("[stage 1 label]", font_size=22, color=WHITE).next_to(shape1, DOWN, buff=0.35)
+    shape2 = Circle(radius=1.0, stroke_width=3, color=YELLOW, fill_color=YELLOW, fill_opacity=0.15).move_to(RIGHT * 3)
+    label2 = Text("[stage 2 label]", font_size=22, color=WHITE).next_to(shape2, DOWN, buff=0.35)
+    arrow1 = Arrow(shape1.get_right(), shape2.get_left(), color=GREY_B, stroke_width=2, buff=0.15)
 """
 
 PROMPT_BUILDERS = {
@@ -124,7 +131,7 @@ PROMPT_BUILDERS = {
 
 
 def generate_code_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model=CODER_MODEL, temperature=0)
+    llm = get_coder_llm()
     all_scenes = []
 
     for i, step in enumerate(state["steps"]):

@@ -1,6 +1,7 @@
 import json
 import re
-from langchain_ollama import ChatOllama
+import os
+from graph.llm_config import get_reasoning_llm
 from graph.state import GraphState
 from graph.extract import extract_code
 from graph.extract_pdf import MAX_TOPICS
@@ -9,7 +10,7 @@ REASONING_MODEL = "qwen2.5:1.5b"
 
 
 def segment_topics_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model=REASONING_MODEL, temperature=0, num_predict=800)
+    llm = get_reasoning_llm()
 
     text = state["raw_pdf_text"]
 
@@ -26,7 +27,7 @@ Example:
 {{"topics": ["Subtracting integers", "Solving one-step equations", "The distributive property"]}}
 
 Document text:
-{text[:6000]}"""
+{text[:20000]}"""
 
     response = llm.invoke(prompt)
     raw = response.content

@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from graph.build_graph import app
 import time
 

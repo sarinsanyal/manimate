@@ -1,11 +1,11 @@
-from langchain_ollama import ChatOllama
+from graph.llm_config import get_coder_llm
 from graph.state import GraphState
 from graph.extract import extract_code
 from graph.generate_code import COMMON_RULES
 
 
 def retry_failed_scenes_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model="qwen2.5-coder:3b", temperature=0)
+    llm = get_coder_llm()
     fixed_scenes = list(state["scenes"])  # copy
 
     for failed in state["failed_scenes"]:

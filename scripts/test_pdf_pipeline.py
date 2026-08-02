@@ -1,8 +1,11 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from graph.build_pdf_graph import pdf_app
 from graph.build_graph import app
 import time
 
-PDF_PATH = "pdf/water_cycle.pdf"  # change this to your test PDF
+PDF_PATH = "pdf/algebra.pdf"  # change this to your test PDF
 
 if __name__ == "__main__":
     print("\nExtracting and segmenting PDF...\n")

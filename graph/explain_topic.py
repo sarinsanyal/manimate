@@ -1,4 +1,4 @@
-from langchain_ollama import ChatOllama
+from graph.llm_config import get_reasoning_llm
 import json
 import re
 from graph.state import GraphState
@@ -6,7 +6,7 @@ from graph.extract import extract_code
 
 
 def explain_topic_node(state: GraphState) -> GraphState:
-    llm = ChatOllama(model="qwen2.5:1.5b", temperature=0, num_predict=800)
+    llm = get_reasoning_llm()
 
     prompt = f"""You are a teacher explaining a topic to a student for the first time. The topic can be from any subject: math, science, history, literature, grammar, or anything else.
 
